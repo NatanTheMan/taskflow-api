@@ -16,12 +16,15 @@ import (
 )
 
 func main() {
-	godotenv.Load(".env")
+	_ = godotenv.Load(".env")
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("invalid configuration", "error", err)
 		os.Exit(1)
 	}
+
+	logger := newLogger(cfg)
+	slog.SetDefault(logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -41,5 +44,19 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	server.ListenAndServe()
+	logger.Info("server starting", "port", cfg.HTTPPort, "env", cfg.Env)
+	_ = server.ListenAndServe()
+}
+
+func newLogger(cfg *config.Config) *slog.Logger {
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(cfg.LogLevel)); err != nil {
+		level = slog.LevelInfo
+	}
+	opts := &slog.HandlerOptions{Level: level}
+
+	if cfg.Env == "production" {
+		return slog.New(slog.NewJSONHandler(os.Stdout, opts))
+	}
+	return slog.New(slog.NewTextHandler(os.Stdout, opts))
 }
