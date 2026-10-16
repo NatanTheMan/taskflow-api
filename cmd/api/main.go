@@ -16,11 +16,17 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		slog.Error("application error", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	_ = godotenv.Load(".env")
 	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("invalid configuration", "error", err)
-		os.Exit(1)
+		return err
 	}
 
 	logger := newLogger(cfg)
@@ -31,7 +37,7 @@ func main() {
 
 	pool, err := database.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
-		println("no db")
+		return err
 	}
 	defer pool.Close()
 
@@ -45,7 +51,11 @@ func main() {
 	}
 
 	logger.Info("server starting", "port", cfg.HTTPPort, "env", cfg.Env)
-	_ = server.ListenAndServe()
+	if err := server.ListenAndServe(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func newLogger(cfg *config.Config) *slog.Logger {
