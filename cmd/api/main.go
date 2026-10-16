@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -50,12 +51,24 @@ func run() error {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	logger.Info("server starting", "port", cfg.HTTPPort, "env", cfg.Env)
-	if err := server.ListenAndServe(); err != nil {
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info("server starting", "port", cfg.HTTPPort, "env", cfg.Env)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+	}()
+
+	select {
+	case err := <-errCh:
 		return err
+	case <-ctx.Done():
+		logger.Info("shutting down")
 	}
 
-	return nil
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+	defer cancel()
+	return server.Shutdown(shutdownCtx)
 }
 
 func newLogger(cfg *config.Config) *slog.Logger {
