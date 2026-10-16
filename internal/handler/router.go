@@ -14,6 +14,7 @@ func NewRouter(db Pinger) http.Handler {
 
 	health := NewHealthHandler(db)
 	r.Get("/health", health.Live)
+	r.Get("/ready", health.Ready)
 
 	return r
 }
