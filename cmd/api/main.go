@@ -44,7 +44,7 @@ func run() error {
 
 	server := &http.Server{
 		Addr:              ":" + cfg.HTTPPort,
-		Handler:           handler.NewRouter(pool),
+		Handler:           handler.NewRouter(pool, logger),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      15 * time.Second,
